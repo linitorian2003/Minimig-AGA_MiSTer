@@ -9,17 +9,11 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Install Docker
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y docker.io
-          sudo systemctl start docker
 
       - name: Pull Quartus 17.1 Docker image
         run: |
@@ -30,8 +24,9 @@ jobs:
           docker run --rm \
             -v ${{ github.workspace }}:/build \
             -w /build \
+            --entrypoint "" \
             raetro/quartus:17.1 \
-            quartus_sh --flow compile Minimig.qpf
+            /bin/bash -c "export PATH=/opt/intelFPGA_lite/17.1/quartus/bin:$PATH && quartus_sh --flow compile Minimig.qpf"
 
       - name: List output files
         if: always()
