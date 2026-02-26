@@ -211,32 +211,10 @@ task build_identify;
 endtask
 
 // ============================================================
-// SD read data capture - fills sector_buf from SPI stream
-// ============================================================
-reg [8:0] rd_byte_cnt;
-reg       rd_hi_lo; // 0=high byte, 1=low byte
-
-always @(posedge clk) begin
-    if(sd_rd_valid) begin
-        if(!rd_hi_lo) begin
-            // High byte of word
-            sector_buf[rd_byte_cnt[8:1]][15:8] <= sd_rd_data;
-        end else begin
-            // Low byte of word
-            sector_buf[rd_byte_cnt[8:1]][7:0]  <= sd_rd_data;
-        end
-        rd_byte_cnt <= rd_byte_cnt + 1'd1;
-        rd_hi_lo    <= ~rd_hi_lo;
-    end
-    if(state == ST_PIO_READ_SD) begin
-        rd_byte_cnt <= 0;
-        rd_hi_lo    <= 0;
-    end
-end
-
-// ============================================================
 // Write data - stream sector_buf to SPI controller
 // ============================================================
+reg [8:0] rd_byte_cnt;
+reg       rd_hi_lo;
 reg [8:0] wr_byte_cnt;
 reg       wr_hi_lo;
 
@@ -270,11 +248,23 @@ always @(posedge clk) begin
         sd_wr_req    <= 0;
         buf_ptr      <= 0;
         sec_remain   <= 0;
+        rd_byte_cnt  <= 0;
+        rd_hi_lo     <= 0;
     end
     else begin
         sd_rd_req <= 0;
         sd_wr_req <= 0;
         ide_irq   <= 0;
+
+        // SD read data capture - fills sector_buf from SPI stream
+        if(sd_rd_valid) begin
+            if(!rd_hi_lo)
+                sector_buf[rd_byte_cnt[8:1]][15:8] <= sd_rd_data;
+            else
+                sector_buf[rd_byte_cnt[8:1]][7:0]  <= sd_rd_data;
+            rd_byte_cnt <= rd_byte_cnt + 1'd1;
+            rd_hi_lo    <= ~rd_hi_lo;
+        end
 
         case(state)
 
@@ -300,6 +290,8 @@ always @(posedge clk) begin
                 ata_status   <= ATA_ST_BSY;
                 sd_block_addr<= {4'b0000, lba28} + (ata_sec_count - sec_remain);
                 sd_rd_req    <= 1;
+                rd_byte_cnt  <= 0;
+                rd_hi_lo     <= 0;
                 state        <= ST_PIO_READ_WAIT;
             end
 
