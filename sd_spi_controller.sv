@@ -41,8 +41,7 @@ wire      spi_clk_en = fast_mode ? (clk_div == 7'd3) : (clk_div == 7'd34);
 
 always @(posedge clk) begin
     if(reset) begin
-        clk_div   <= 0;
-        fast_mode <= 0;
+        clk_div <= 0;
     end else begin
         clk_div <= clk_div + 1'd1;
         if(fast_mode && clk_div >= 7'd6)  clk_div <= 0;
@@ -80,7 +79,7 @@ reg [4:0]  state;
 reg [4:0]  return_state;   // Where to go after sending a command
 reg [6:0]  init_clk_cnt;   // Counter for 80 init clocks
 reg [8:0]  byte_cnt;       // Byte counter for 512-byte transfers
-reg [2:0]  bit_cnt;        // Bit counter within a byte (0-7)
+reg [3:0]  bit_cnt;        // Bit counter within a byte (0-7, up to 15 for CRC)
 reg [7:0]  shift_out;      // Byte being shifted out (MOSI)
 reg [7:0]  shift_in;       // Byte being shifted in  (MISO)
 reg [47:0] cmd_out;        // 48-bit SPI command
