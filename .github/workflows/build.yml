@@ -26,7 +26,7 @@ jobs:
             -w /build \
             --entrypoint "" \
             raetro/quartus:17.1 \
-            /bin/bash -c "export PATH=/opt/intelFPGA_lite/17.1/quartus/bin:$PATH && quartus_sh --flow compile Minimig.qpf"
+            /bin/bash -c "find /opt -name 'quartus_sh' 2>/dev/null | head -5 && find /home -name 'quartus_sh' 2>/dev/null | head -5 && find /usr -name 'quartus_sh' 2>/dev/null | head -5 && export PATH=\$(dirname \$(find / -name 'quartus_sh' 2>/dev/null | head -1)):\$PATH && quartus_sh --flow compile Minimig.qpf"
 
       - name: List output files
         if: always()
