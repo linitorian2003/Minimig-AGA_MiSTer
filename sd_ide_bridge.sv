@@ -219,20 +219,26 @@ reg [8:0] wr_byte_cnt;
 reg       wr_hi_lo;
 
 always @(posedge clk) begin
-    if(sd_wr_req_next && state == ST_PIO_WRITE_WAIT) begin
-        if(!wr_hi_lo) begin
-            sd_wr_data <= sector_buf[wr_byte_cnt[8:1]][15:8];
-        end else begin
-            sd_wr_data <= sector_buf[wr_byte_cnt[8:1]][7:0];
-        end
-        wr_byte_cnt <= wr_byte_cnt + 1'd1;
-        wr_hi_lo    <= ~wr_hi_lo;
-    end
-    if(state == ST_PIO_WRITE_SD) begin
+    if(reset) begin
         wr_byte_cnt <= 0;
         wr_hi_lo    <= 0;
+    end else begin
+        if(sd_wr_req_next && state == ST_PIO_WRITE_WAIT) begin
+            if(!wr_hi_lo) begin
+                sd_wr_data <= sector_buf[wr_byte_cnt[8:1]][15:8];
+            end else begin
+                sd_wr_data <= sector_buf[wr_byte_cnt[8:1]][7:0];
+            end
+            wr_byte_cnt <= wr_byte_cnt + 1'd1;
+            wr_hi_lo    <= ~wr_hi_lo;
+        end
+        if(state == ST_PIO_WRITE_SD) begin
+            wr_byte_cnt <= 0;
+            wr_hi_lo    <= 0;
+        end
     end
 end
+
 
 // ============================================================
 // Main ATA state machine
@@ -323,11 +329,10 @@ always @(posedge clk) begin
                 ata_status    <= ATA_ST_BSY;
                 sd_block_addr <= {4'b0000, lba28} + (ata_sec_count - sec_remain);
                 sd_wr_req     <= 1;
-                wr_byte_cnt   <= 0;
-                wr_hi_lo      <= 0;
+                // wr_byte_cnt <= 0 en wr_hi_lo <= 0 zijn hier verwijderd!
                 state         <= ST_PIO_WRITE_WAIT;
             end
-
+			
             // ---- Wait for SD write to complete ----
             ST_PIO_WRITE_WAIT: begin
                 if(!sd_busy && !sd_wr_req) begin
