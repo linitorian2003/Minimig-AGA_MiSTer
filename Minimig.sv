@@ -162,7 +162,6 @@ module emu
 );
 
 assign ADC_BUS  = 'Z;
-assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 assign BUTTONS = 0;
 assign VGA_DISABLE = 0;
 assign HDMI_FREEZE = 0;
@@ -175,6 +174,8 @@ localparam CONF_STR = {
 	"J,Red(Fire),Blue,Yellow,Green,RT,LT,Pause;",
 	"jn,A,B,X,Y,R,L,Start;",
 	"jp,B,A,X,Y,R,L,Start;",
+	"-;",
+	"O33,Secondary SD Card,Disabled,Enabled;",
 	"-;",
 	"I,",
 	"MT32-pi: SoundFont #0,",
@@ -191,6 +192,9 @@ localparam CONF_STR = {
 	"MT32-pi: Unknown mode;",
 	"V,v",`BUILD_DATE
 };
+
+// Secondary SD card enable from OSD (status bit 51)
+wire sd2_enable = status[51];
 
 wire [15:0] JOY0;
 wire [15:0] JOY1;
@@ -256,6 +260,23 @@ wire  [4:0] ide_addr;
 wire        ide_rd;
 wire        ide_wr;
 wire  [5:0] ide_req;
+
+// ---- Secondary SD card wires ----
+wire        sd2_sck;
+wire        sd2_mosi;
+wire        sd2_cs;
+wire [31:0] sd2_block_addr;
+wire        sd2_rd_req;
+wire        sd2_wr_req;
+wire  [7:0] sd2_wr_data;
+wire  [7:0] sd2_rd_data;
+wire        sd2_rd_valid;
+wire        sd2_wr_req_next;
+wire        sd2_busy;
+wire        sd2_error;
+wire        sd2_card_ready;
+wire [15:0] sd2_ide_readdata;
+wire        sd2_ide_irq;
 
 wire [35:0] EXT_BUS;
 hps_ext hps_ext(.*, .ide_req(ide_fast ? ide_f_req : ide_c_req),  .ide_din(ide_fast ? ide_f_readdata : ide_c_readdata));
@@ -1228,5 +1249,73 @@ end
 assign AUDIO_S = 1;
 assign AUDIO_L = out_l;
 assign AUDIO_R = out_r;
+
+// ============================================================
+// Secondary SD card - SPI controller
+// ============================================================
+sd_spi_controller sd_spi_ctrl
+(
+    .clk          (clk_sys        ),
+    .reset        (reset | ~sd2_enable),
+
+    // Physical SPI pins
+    .sd_sck       (sd2_sck        ),
+    .sd_mosi      (sd2_mosi       ),
+    .sd_miso      (SD_MISO        ),
+    .sd_cs        (sd2_cs         ),
+
+    // Block transfer interface
+    .block_addr   (sd2_block_addr ),
+    .rd_req       (sd2_rd_req     ),
+    .wr_req       (sd2_wr_req     ),
+    .wr_data      (sd2_wr_data    ),
+    .rd_data      (sd2_rd_data    ),
+    .rd_data_valid(sd2_rd_valid   ),
+    .wr_data_req  (sd2_wr_req_next),
+    .busy         (sd2_busy       ),
+    .error        (sd2_error      ),
+    .card_ready   (sd2_card_ready )
+);
+
+// ============================================================
+// Secondary SD card - IDE/ATA bridge
+// ============================================================
+sd_ide_bridge sd_ide_bridge
+(
+    .clk            (clk_sys          ),
+    .reset          (reset | ~sd2_enable),
+
+    // IDE bus - shares address/strobe with primary drives
+    // but only responds when sd2_enable is asserted
+    .ide_addr       (ide_addr         ),
+    .ide_writedata  (ide_dout         ),
+    .ide_readdata   (sd2_ide_readdata ),
+    .ide_rd         (ide_rd & sd2_enable),
+    .ide_wr         (ide_wr & sd2_enable),
+    .ide_irq        (sd2_ide_irq      ),
+    .ide_req        (                 ),
+
+    // SPI controller interface
+    .sd_block_addr  (sd2_block_addr   ),
+    .sd_rd_req      (sd2_rd_req       ),
+    .sd_wr_req      (sd2_wr_req       ),
+    .sd_wr_data     (sd2_wr_data      ),
+    .sd_rd_data     (sd2_rd_data      ),
+    .sd_rd_valid    (sd2_rd_valid     ),
+    .sd_wr_req_next (sd2_wr_req_next  ),
+    .sd_busy        (sd2_busy         ),
+    .sd_error       (sd2_error        ),
+    .sd_card_ready  (sd2_card_ready   ),
+
+    .drive_num      (1'b1             )  // Always slave (drive 1)
+);
+
+// ============================================================
+// Secondary SD card - drive SPI pins
+// When disabled, float the outputs
+// ============================================================
+assign SD_SCK  = sd2_enable ? sd2_sck  : 1'bZ;
+assign SD_MOSI = sd2_enable ? sd2_mosi : 1'bZ;
+assign SD_CS   = sd2_enable ? sd2_cs   : 1'bZ;
 
 endmodule
