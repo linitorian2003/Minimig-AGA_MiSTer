@@ -1,0 +1,42 @@
+name: Build Minimig Core
+
+on:
+  push:
+    branches:
+      - secondary-sd-support
+      - MiSTer
+  workflow_dispatch:  # Allow manual trigger from GitHub website
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: raetro/quartus:17.1
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Compile Minimig core
+        run: |
+          quartus_sh --flow compile Minimig.qpf
+
+      - name: Find compiled RBF file
+        run: |
+          find . -name "*.rbf" -type f
+          ls -la output_files/ || true
+
+      - name: Upload RBF as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Minimig_SD2_${{ github.sha }}
+          path: |
+            output_files/*.rbf
+            output_files/*.sof
+          retention-days: 30
+
+      - name: Show build result
+        if: always()
+        run: |
+          echo "=== Build complete ==="
+          ls -la output_files/ || echo "No output_files directory found"
