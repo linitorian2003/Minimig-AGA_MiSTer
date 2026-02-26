@@ -100,7 +100,6 @@ reg  [7:0] ata_lba_mid;
 reg  [7:0] ata_lba_hi;
 reg  [7:0] ata_drv_head;
 reg  [7:0] ata_status;
-reg  [7:0] ata_command;
 
 // LBA28 address assembled from registers
 wire [27:0] lba28 = {ata_drv_head[3:0], ata_lba_hi, ata_lba_mid, ata_lba_lo};
@@ -376,12 +375,12 @@ always @(posedge clk) begin
                 ATA_DATA: begin
                     // Amiga writing a word into our sector buffer
                     if(state == ST_PIO_WRITE_RDY) begin
-                        sector_buf[buf_ptr[8:1]] <= ide_writedata;
-                        buf_ptr <= buf_ptr + 2'd2;
-                        if(buf_ptr == 510) begin
-                            // Full sector received, write to SD
-                            sec_remain <= sec_remain - 1'd1;
-                            state      <= ST_PIO_WRITE_SD;
+					sector_buf[buf_ptr[8:1]] <= ide_writedata;
+					buf_ptr <= buf_ptr + 2'd2;
+					if(buf_ptr == 510) begin
+						// Full sector received, write to SD
+						// sec_remain <= sec_remain - 1'd1; <--- DEZE REGEL VERWIJDEREN!
+						state      <= ST_PIO_WRITE_SD;
                         end
                     end
                 end
@@ -394,7 +393,6 @@ always @(posedge clk) begin
 
                 ATA_STATUS: begin
                     // Command register write - execute command
-                    ata_command <= ide_writedata[7:0];
                     case(ide_writedata[7:0])
 
                         CMD_IDENTIFY: begin
