@@ -162,6 +162,7 @@ module emu
 );
 
 assign ADC_BUS  = 'Z;
+assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;  // Primary SD slot not used by core
 assign BUTTONS = 0;
 assign VGA_DISABLE = 0;
 assign HDMI_FREEZE = 0;
@@ -1261,7 +1262,7 @@ sd_spi_controller sd_spi_ctrl
     // Physical SPI pins
     .sd_sck       (sd2_sck        ),
     .sd_mosi      (sd2_mosi       ),
-    .sd_miso      (SD_MISO        ),
+    .sd_miso      (sd2_miso_in    ),
     .sd_cs        (sd2_cs         ),
 
     // Block transfer interface
@@ -1314,8 +1315,11 @@ sd_ide_bridge sd_ide_bridge
 // Secondary SD card - drive SPI pins
 // When disabled, float the outputs
 // ============================================================
-assign SD_SCK  = sd2_enable ? sd2_sck  : 1'bZ;
-assign SD_MOSI = sd2_enable ? sd2_mosi : 1'bZ;
-assign SD_CS   = sd2_enable ? sd2_cs   : 1'bZ;
+// Secondary SD card uses USER port pins (second SD slot on MiSTer IO board)
+// USER_OUT[0] = CS, USER_OUT[1] = SCK, USER_OUT[2] = MOSI
+// USER_IN[1]  = MISO
+// Set USER_OUT to '1' (high-Z input mode) when sd2 disabled
+assign USER_OUT = sd2_enable ? {4'b1111, sd2_mosi, sd2_sck, sd2_cs} : 7'b1111111;
+wire sd2_miso_in = USER_IN[1];
 
 endmodule
