@@ -1097,13 +1097,20 @@ wire mt32_available;
 wire mt32_use  = mt32_available & ~mt32_disable;
 wire mt32_mute = mt32_available &  mt32_disable;
 
+wire [6:0] mt32_user_out;
+
 mt32pi mt32pi
 (
 	.*,
+	.USER_OUT(mt32_user_out),
 	.CE_PIXEL(ce_pix_mt32),
 	.reset(mt32_reset),
 	.midi_tx(midi_tx | mt32_mute)
 );
+
+// Mux USER_OUT: SD2 takes bits [2:0] when enabled, mt32pi has the rest
+assign USER_OUT = sd2_enable ? {mt32_user_out[6:3], sd2_mosi, sd2_sck, sd2_cs}
+                             : mt32_user_out;
 
 wire  [4:0] mt32_cfg = (mt32_mode == 'hA2) ? {mt32_sf[2:0],  2'b10} :
                        (mt32_mode == 'hA1) ? {mt32_rom[1:0], 2'b01} : 5'd0;
@@ -1318,8 +1325,6 @@ sd_ide_bridge sd_ide_bridge
 // Secondary SD card uses USER port pins (second SD slot on MiSTer IO board)
 // USER_OUT[0] = CS, USER_OUT[1] = SCK, USER_OUT[2] = MOSI
 // USER_IN[1]  = MISO
-// Set USER_OUT to '1' (high-Z input mode) when sd2 disabled
-assign USER_OUT = sd2_enable ? {4'b1111, sd2_mosi, sd2_sck, sd2_cs} : 7'b1111111;
 wire sd2_miso_in = USER_IN[1];
 
 endmodule
